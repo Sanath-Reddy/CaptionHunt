@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { SearchResult } from '@/lib/search';
-import { formatTimestamp } from '@/lib/search';
 import { useToast } from '@/components/ToastProvider';
 
 function formatDuration(seconds: number | null): string {
@@ -232,7 +231,7 @@ function SearchResultCard({ result }: { result: SearchResult }) {
           className="timestamp-badge"
           onClick={(e) => e.stopPropagation()}
         >
-          ▶ {formatTimestamp(result.startTime)}
+          ▶ {formatDuration(Math.floor(result.startTime))}
         </a>
         {result.publishedAt && (
           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>

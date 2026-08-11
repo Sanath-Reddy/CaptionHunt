@@ -146,14 +146,14 @@ export async function searchTranscripts(
   // ── 3. Reciprocal Rank Fusion ──────────────────────────────────────────────
   const rrfScores = new Map<string, { score: number; ftsRank?: number; vecRank?: number }>();
 
-  (ftsResults as unknown as { segment_id: string }[]).forEach((row, idx) => {
+  ((ftsResults as any).rows || ftsResults).forEach((row: any, idx: number) => {
     const existing = rrfScores.get(row.segment_id) ?? { score: 0 };
     existing.score += 1 / (RRF_K + idx + 1);
     existing.ftsRank = idx + 1;
     rrfScores.set(row.segment_id, existing);
   });
 
-  (vectorResults as unknown as { segment_id: string }[]).forEach((row, idx) => {
+  ((vectorResults as any).rows || vectorResults).forEach((row: any, idx: number) => {
     const existing = rrfScores.get(row.segment_id) ?? { score: 0 };
     existing.score += 1 / (RRF_K + idx + 1);
     existing.vecRank = idx + 1;
@@ -210,7 +210,7 @@ export async function searchTranscripts(
   }[];
 
   // Map back in RRF order
-  const resultMap = new Map(fullResults.map((r) => [r.segment_id, r]));
+  const resultMap = new Map(((fullResults as any).rows || fullResults).map((r: any) => [r.segment_id, r]));
 
   const results: SearchResult[] = pageIds
     .map((id) => {
