@@ -190,7 +190,11 @@ function SearchResultCard({ result }: { result: SearchResult }) {
   const channelInitial = result.channelName?.[0]?.toUpperCase() ?? '?';
 
   return (
-    <div className="result-card">
+    <div 
+      className="result-card"
+      onClick={() => window.open(result.youtubeUrl, '_blank', 'noopener,noreferrer')}
+      style={{ cursor: 'pointer' }}
+    >
       {/* Header: channel + video */}
       <div className="result-header">
         {result.channelThumbnail ? (
@@ -244,6 +248,7 @@ function SearchResultCard({ result }: { result: SearchResult }) {
           rel="noopener noreferrer"
           className="btn btn-ghost btn-sm"
           style={{ marginLeft: 'auto', fontSize: '0.8rem' }}
+          onClick={(e) => e.stopPropagation()}
         >
           Open in YouTube ↗
         </a>
