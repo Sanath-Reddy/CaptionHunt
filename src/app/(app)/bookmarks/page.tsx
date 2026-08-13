@@ -1,7 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { formatTimestamp } from '@/lib/search';
+
+function formatTimestamp(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
 
 export default function BookmarksPage() {
   const [bookmarks, setBookmarks] = useState<any[]>([]);
@@ -39,7 +46,12 @@ export default function BookmarksPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {bookmarks.map(({ bookmark, segmentText, videoTitle, youtubeVideoId }) => (
-            <div key={bookmark.id} className="card" style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+            <div 
+              key={bookmark.id} 
+              className="card" 
+              style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', cursor: 'pointer' }}
+              onClick={() => window.open(`https://youtube.com/watch?v=${youtubeVideoId}&t=${Math.floor(bookmark.startTime)}s`, '_blank', 'noopener,noreferrer')}
+            >
               <div style={{ fontSize: '1.5rem' }}>🔖</div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 600, marginBottom: '0.25rem', fontSize: '0.875rem' }}>{videoTitle}</div>
@@ -59,6 +71,7 @@ export default function BookmarksPage() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="timestamp-badge"
+                    onClick={(e) => e.stopPropagation()}
                   >
                     ▶ {formatTimestamp(bookmark.startTime)}
                   </a>

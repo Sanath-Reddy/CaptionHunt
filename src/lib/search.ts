@@ -214,7 +214,7 @@ export async function searchTranscripts(
 
   const results: SearchResult[] = pageIds
     .map((id) => {
-      const r = resultMap.get(id);
+      const r = resultMap.get(id) as any;
       if (!r) return null;
 
       return {
