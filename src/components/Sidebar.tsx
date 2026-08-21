@@ -6,7 +6,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { useTheme } from './ThemeProvider';
 
 const navItems = [
-  { href: '/',           label: 'Search',    icon: '🔍', section: 'main' },
+  { href: '/search',    label: 'Search',    icon: '🔍', section: 'main' },
   { href: '/channels',   label: 'Channels',  icon: '📺', section: 'main' },
   { href: '/videos',     label: 'Videos',    icon: '🎬', section: 'main' },
   { href: '/bookmarks',  label: 'Bookmarks', icon: '🔖', section: 'library' },
@@ -49,7 +49,11 @@ export function Sidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`sidebar-link ${pathname === item.href ? 'active' : ''}`}
+                  className={`sidebar-link ${(
+                    item.href === '/search'
+                      ? pathname === '/search' || pathname.startsWith('/search')
+                      : pathname === item.href
+                  ) ? 'active' : ''}`}
                 >
                   <span className="sidebar-link-icon">{item.icon}</span>
                   {item.label}

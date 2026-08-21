@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useToast } from '@/components/ToastProvider';
 
 function formatTimestamp(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -13,12 +14,23 @@ function formatTimestamp(seconds: number): string {
 export default function BookmarksPage() {
   const [bookmarks, setBookmarks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetch('/api/bookmarks')
       .then((r) => r.json())
       .then((data) => { setBookmarks(data.bookmarks ?? []); setLoading(false); });
   }, []);
+
+  const handleDelete = async (id: string) => {
+    const res = await fetch(`/api/bookmarks/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setBookmarks((prev) => prev.filter((b) => b.bookmark.id !== id));
+      toast('Bookmark removed', 'success');
+    } else {
+      toast('Failed to remove bookmark', 'error');
+    }
+  };
 
   return (
     <div>
@@ -45,43 +57,55 @@ export default function BookmarksPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {bookmarks.map(({ bookmark, segmentText, videoTitle, youtubeVideoId }) => (
-            <div 
-              key={bookmark.id} 
-              className="card" 
-              style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', cursor: 'pointer' }}
-              onClick={() => window.open(`https://youtube.com/watch?v=${youtubeVideoId}&t=${Math.floor(bookmark.startTime)}s`, '_blank', 'noopener,noreferrer')}
-            >
-              <div style={{ fontSize: '1.5rem' }}>🔖</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, marginBottom: '0.25rem', fontSize: '0.875rem' }}>{videoTitle}</div>
-                {segmentText && (
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '0.5rem' }}>
-                    {segmentText}
-                  </p>
-                )}
-                {bookmark.note && (
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.813rem', fontStyle: 'italic', marginBottom: '0.5rem' }}>
-                    "{bookmark.note}"
-                  </p>
-                )}
-                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                  <a
-                    href={`https://youtube.com/watch?v=${youtubeVideoId}&t=${Math.floor(bookmark.startTime)}s`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="timestamp-badge"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    ▶ {formatTimestamp(bookmark.startTime)}
-                  </a>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    {new Date(bookmark.createdAt).toLocaleDateString()}
-                  </span>
+          {bookmarks.map(({ bookmark, segmentText, videoTitle, youtubeVideoId }) => {
+            const youtubeUrl = `https://youtube.com/watch?v=${youtubeVideoId}&t=${Math.floor(bookmark.startTime)}s`;
+            return (
+              <div
+                key={bookmark.id}
+                className="card"
+                style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', cursor: 'pointer' }}
+                onClick={() => window.open(youtubeUrl, '_blank', 'noopener,noreferrer')}
+              >
+                <div style={{ fontSize: '1.5rem' }}>🔖</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, marginBottom: '0.25rem', fontSize: '0.875rem' }}>{videoTitle}</div>
+                  {segmentText && (
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '0.5rem' }}>
+                      {segmentText}
+                    </p>
+                  )}
+                  {bookmark.note && (
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.813rem', fontStyle: 'italic', marginBottom: '0.5rem' }}>
+                      "{bookmark.note}"
+                    </p>
+                  )}
+                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    <a
+                      href={youtubeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="timestamp-badge"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      ▶ {formatTimestamp(bookmark.startTime)}
+                    </a>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      {new Date(bookmark.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
                 </div>
+                {/* Delete button */}
+                <button
+                  className="btn btn-ghost btn-icon"
+                  title="Remove bookmark"
+                  style={{ fontSize: '1rem', flexShrink: 0 }}
+                  onClick={(e) => { e.stopPropagation(); handleDelete(bookmark.id); }}
+                >
+                  🗑️
+                </button>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

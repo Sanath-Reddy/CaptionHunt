@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import type { SearchResult } from '@/lib/search';
 import { useToast } from '@/components/ToastProvider';
+
+type ToastFn = (message: string, type?: 'success' | 'error' | 'info') => void;
 
 function formatDuration(seconds: number | null): string {
   if (!seconds) return '';
@@ -13,8 +16,11 @@ function formatDuration(seconds: number | null): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-export default function SearchPage() {
-  const [query, setQuery] = useState('');
+// Inner component that safely uses useSearchParams
+function SearchPageInner() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [query, setQuery] = useState(searchParams.get('q') ?? '');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -59,8 +65,20 @@ export default function SearchPage() {
     }
   }, [toast]);
 
+  // Auto-search from URL query param (e.g. when clicking from history page)
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q && q.trim()) {
+      setQuery(q);
+      performSearch(q, 1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Update URL so it's shareable / bookmarkable
+    router.replace(`/search?q=${encodeURIComponent(query.trim())}`, { scroll: false });
     performSearch(query, 1);
   };
 
@@ -138,7 +156,7 @@ export default function SearchPage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
               {results.map((result) => (
-                <SearchResultCard key={result.segmentId} result={result} />
+                <SearchResultCard key={result.segmentId} result={result} toast={toast} />
               ))}
             </div>
           )}
@@ -186,11 +204,55 @@ export default function SearchPage() {
   );
 }
 
-function SearchResultCard({ result }: { result: SearchResult }) {
+// Exported page wraps the inner component in Suspense (required for useSearchParams)
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<div className="empty-state"><div className="spinner" style={{ width: 36, height: 36 }} /></div>}>
+      <SearchPageInner />
+    </Suspense>
+  );
+}
+
+function SearchResultCard({ result, toast }: { result: SearchResult; toast: ToastFn }) {
   const channelInitial = result.channelName?.[0]?.toUpperCase() ?? '?';
+  const [bookmarked, setBookmarked] = useState(false);
+  const [bookmarking, setBookmarking] = useState(false);
+
+  const handleCopyLink = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(result.youtubeUrl).then(() => {
+      toast('Timestamp link copied!', 'success');
+    }).catch(() => {
+      toast('Failed to copy link', 'error');
+    });
+  };
+
+  const handleBookmark = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (bookmarked || bookmarking) return;
+    setBookmarking(true);
+    try {
+      const res = await fetch('/api/bookmarks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoId: result.videoId,
+          segmentId: result.segmentId,
+          startTime: result.startTime,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      setBookmarked(true);
+      toast('Bookmarked!', 'success');
+    } catch {
+      toast('Failed to bookmark', 'error');
+    } finally {
+      setBookmarking(false);
+    }
+  };
 
   return (
-    <div 
+    <div
       className="result-card"
       onClick={() => window.open(result.youtubeUrl, '_blank', 'noopener,noreferrer')}
       style={{ cursor: 'pointer' }}
@@ -226,8 +288,8 @@ function SearchResultCard({ result }: { result: SearchResult }) {
         dangerouslySetInnerHTML={{ __html: result.highlightedText ?? result.text }}
       />
 
-      {/* Footer: timestamp link + bookmark */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.875rem' }}>
+      {/* Footer: timestamp link + actions */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.875rem', flexWrap: 'wrap' }}>
         <a
           href={result.youtubeUrl}
           target="_blank"
@@ -242,16 +304,38 @@ function SearchResultCard({ result }: { result: SearchResult }) {
             {new Date(result.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </span>
         )}
-        <a
-          href={result.youtubeUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-ghost btn-sm"
-          style={{ marginLeft: 'auto', fontSize: '0.8rem' }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          Open in YouTube ↗
-        </a>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
+          {/* Copy link */}
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ fontSize: '0.8rem' }}
+            onClick={handleCopyLink}
+            title="Copy timestamp link"
+          >
+            📋 Copy Link
+          </button>
+          {/* Bookmark */}
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ fontSize: '0.8rem', color: bookmarked ? 'var(--brand-from)' : undefined }}
+            onClick={handleBookmark}
+            disabled={bookmarking}
+            title={bookmarked ? 'Bookmarked' : 'Bookmark this moment'}
+          >
+            {bookmarked ? '🔖 Saved' : '🔖 Bookmark'}
+          </button>
+          {/* Open in YouTube */}
+          <a
+            href={result.youtubeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-ghost btn-sm"
+            style={{ fontSize: '0.8rem' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            Open in YouTube ↗
+          </a>
+        </div>
       </div>
     </div>
   );

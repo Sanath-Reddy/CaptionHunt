@@ -115,9 +115,14 @@ function ChannelCard({
   onToggleAutoProcess: () => void;
 }) {
   const initial = channel.name[0]?.toUpperCase() ?? '?';
+  const youtubeUrl = `https://youtube.com/channel/${channel.youtubeChannelId}`;
 
   return (
-    <div className="channel-card">
+    <div
+      className="channel-card"
+      onClick={() => window.open(youtubeUrl, '_blank', 'noopener,noreferrer')}
+      style={{ cursor: 'pointer' }}
+    >
       <div className="channel-card-header">
         {channel.thumbnailUrl ? (
           <img src={channel.thumbnailUrl} alt={channel.name} className="channel-thumb" />
@@ -135,7 +140,12 @@ function ChannelCard({
             {formatSubscribers(channel.subscriberCount)} subscribers
           </div>
         </div>
-        <button className="btn btn-ghost btn-icon" onClick={onDelete} title="Remove channel" style={{ fontSize: '1rem' }}>
+        <button
+          className="btn btn-ghost btn-icon"
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          title="Remove channel"
+          style={{ fontSize: '1rem' }}
+        >
           🗑️
         </button>
       </div>
@@ -156,7 +166,7 @@ function ChannelCard({
         </div>
         <div className="channel-stat">
           <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <label className="toggle" title="Auto-process new uploads">
+            <label className="toggle" title="Auto-process new uploads" onClick={(e) => e.stopPropagation()}>
               <input
                 type="checkbox"
                 checked={channel.autoProcess}
@@ -168,9 +178,22 @@ function ChannelCard({
           <div className="channel-stat-label">Auto-index</div>
         </div>
       </div>
+
+      {/* YouTube link */}
+      <a
+        href={youtubeUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="btn btn-ghost btn-sm"
+        style={{ width: '100%', justifyContent: 'center', fontSize: '0.8rem', marginTop: '0.75rem' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        View on YouTube ↗
+      </a>
     </div>
   );
 }
+
 
 function AddChannelModal({
   onClose,

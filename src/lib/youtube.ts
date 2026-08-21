@@ -256,7 +256,71 @@ export function extractVideoId(urlOrId: string): string | null {
   return null;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Playlist ID Extraction ───────────────────────────────────────────────────
+/**
+ * Extract a playlist ID from various YouTube playlist URL formats.
+ * Supports: ?list=..., /playlist?list=..., bare PL... IDs
+ */
+export function extractPlaylistId(urlOrId: string): string | null {
+  const trimmed = urlOrId.trim();
+
+  // Bare playlist ID (starts with PL, UU, FL, RD etc.)
+  if (/^(PL|UU|FL|RD|OL)[A-Za-z0-9_-]{10,}$/.test(trimmed)) return trimmed;
+
+  // From URL query param ?list=...
+  try {
+    const url = new URL(trimmed.startsWith('http') ? trimmed : `https://www.youtube.com/${trimmed}`);
+    const list = url.searchParams.get('list');
+    if (list) return list;
+  } catch {}
+
+  // Regex fallback
+  const match = trimmed.match(/[?&]list=([A-Za-z0-9_-]+)/);
+  if (match) return match[1];
+
+  return null;
+}
+
+/**
+ * Fetch playlist metadata (title, thumbnail, channel, video count).
+ */
+export async function getPlaylistInfo(playlistId: string): Promise<{
+  id: string;
+  title: string;
+  description: string;
+  thumbnailUrl: string;
+  channelTitle: string;
+  itemCount: number;
+}> {
+  const data = await ytFetch<{
+    items?: {
+      id: string;
+      snippet: {
+        title: string;
+        description: string;
+        thumbnails: { high?: { url: string }; medium?: { url: string } };
+        channelTitle: string;
+      };
+      contentDetails: { itemCount: number };
+    }[];
+  }>('playlists', {
+    part: 'snippet,contentDetails',
+    id: playlistId,
+  });
+
+  const item = data.items?.[0];
+  if (!item) throw new Error(`Playlist not found: ${playlistId}`);
+
+  return {
+    id: item.id,
+    title: item.snippet.title,
+    description: item.snippet.description,
+    thumbnailUrl: item.snippet.thumbnails.high?.url ?? item.snippet.thumbnails.medium?.url ?? '',
+    channelTitle: item.snippet.channelTitle,
+    itemCount: item.contentDetails.itemCount,
+  };
+}
+
 function parseISO8601Duration(duration: string): number {
   const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
   if (!match) return 0;
